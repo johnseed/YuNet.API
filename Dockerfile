@@ -1,7 +1,7 @@
 FROM continuumio/miniconda3 as extract
 WORKDIR /app
 COPY . .
-ADD conda-pack/face.tar.gz flight
+ADD conda-pack/face.tar.gz face
 # RUN mkdir weather && tar -xf conda-pack/weather.tar.gz -C weather
 RUN rm -rf conda-pack
 
