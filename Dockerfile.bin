@@ -1,0 +1,18 @@
+FROM continuumio/miniconda3 as extract
+WORKDIR /app
+COPY publish .
+COPY static ./static
+ADD conda-pack/face.tar.gz face
+# RUN mkdir weather && tar -xf conda-pack/weather.tar.gz -C weather
+RUN rm -rf conda-pack
+
+FROM continuumio/miniconda3
+WORKDIR /app
+COPY --from=extract /app /app
+EXPOSE 8000
+COPY localrepo /app/localrepo
+# opencv dependency https://itsmycode.com/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directory/
+RUN chmod +x server.bin && ln -s /app/face /opt/conda/envs/face && cd /app/localrepo && sh install-libgl1.sh && cd .. && rm -rf /app/localrepo
+# online install
+# RUN apt update && apt-get install libgl1 -y
+ENTRYPOINT [ "./server.bin" ] 
