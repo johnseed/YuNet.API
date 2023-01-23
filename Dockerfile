@@ -1,11 +1,11 @@
-FROM continuumio/miniconda3 as extract
+FROM miniconda3:cuda12 as extract
 WORKDIR /app
 COPY . .
 ADD conda-pack/face.tar.gz face
 # RUN mkdir weather && tar -xf conda-pack/weather.tar.gz -C weather
 RUN rm -rf conda-pack
 
-FROM continuumio/miniconda3
+FROM miniconda3:cuda12
 WORKDIR /app
 COPY --from=extract /app /app
 COPY localrepo /app/localrepo

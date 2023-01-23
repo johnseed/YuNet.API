@@ -12,9 +12,9 @@ backends = [cv.dnn.DNN_BACKEND_OPENCV, cv.dnn.DNN_BACKEND_CUDA]
 targets = [cv.dnn.DNN_TARGET_CPU, cv.dnn.DNN_TARGET_CUDA, cv.dnn.DNN_TARGET_CUDA_FP16]
 
 class DetectionParam(BaseModel):
-    save: Optional[str] = Field(True, description="Set “True” to save file with results (i.e. bounding box, confidence level). Invalid in case of camera input. Default will be set to “False”.")
+    save: Optional[bool] = Field(True, description="Set “True” to save file with results (i.e. bounding box, confidence level). Invalid in case of camera input. Default will be set to “False”.")
     input: str = Field(..., description="Image file path")
-    output: str = Field(..., description="Result file path")
+    output: Optional[str] = Field('', description="Result file path")
 
 
 help_msg_backends = "Choose one of the computation backends: {:d}: OpenCV implementation (default); {:d}: CUDA"
@@ -72,8 +72,8 @@ model = YuNet(modelPath='face_detection_yunet_2022mar.onnx',
                 confThreshold=0.9,
                 nmsThreshold=0.3,
                 topK=5000,
-                backendId=backends[0],
-                targetId=targets[0])
+                backendId=backends[1],
+                targetId=targets[1])
 
 def detect_face(param: DetectionParam):
     # If input is an image
@@ -85,19 +85,21 @@ def detect_face(param: DetectionParam):
         model.setInputSize([w, h])
         results = model.infer(image)
 
-        # Print results
-        print('{} faces detected.'.format(results.shape[0]))
-        for idx, det in enumerate(results):
-            print('{}: {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f}'.format(
-                idx, *det[:-1])
-            )
-
-        # Draw results on the input image
-        image = visualize(image, results)
+        # # Print results
+        # print('{} faces detected.'.format(results.shape[0]))
+        # for idx, det in enumerate(results):
+        #     print('{}: {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f}'.format(
+        #         idx, *det[:-1])
+        #     )
 
         # Save results if save is true
         if param.save:
-            print('Resutls saved\n')
+            # Draw results on the input image
+            image = visualize(image, results)
             cv.imwrite(param.output, image)
+            print('Resutls saved\n')
 
-        return results.tolist()
+        if results is not None:
+            return results.tolist()
+        else:
+         return []
