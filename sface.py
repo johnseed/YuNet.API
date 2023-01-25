@@ -10,7 +10,7 @@ import cv2 as cv
 from _testcapi import FLT_MIN
 
 class SFace:
-    def __init__(self, modelPath, disType=0, backendId=0, targetId=0):
+    def __init__(self, modelPath, disType=0, backendId=1, targetId=1):
         self._modelPath = modelPath
         self._backendId = backendId
         self._targetId = targetId
@@ -71,3 +71,10 @@ class SFace:
             norml2_distance = self._model.match(feature1, feature2, self._disType)
             return 1 if norml2_distance <= self._threshold_norml2 else 0
 
+    def match(self, feature1, feature2):
+        if self._disType == 0: # COSINE
+            cosine_score = self._model.match(feature1, feature2, self._disType)
+            return 1 if cosine_score >= self._threshold_cosine else 0
+        else: # NORM_L2
+            norml2_distance = self._model.match(feature1, feature2, self._disType)
+            return 1 if norml2_distance <= self._threshold_norml2 else 0

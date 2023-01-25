@@ -63,5 +63,7 @@ class YuNet:
     def infer(self, image):
         # Forward
         faces = self._model.detect(image)
+        # 如果没有检测出人脸，则faces为NoneType而非一个空的numpy数组。这是由于OpenCV的Python bindings导致的。
+        # 如果检测出人脸，则faces为一个len=2的Tuple，其中faces[1]为nx15的二维numpy数组（排列方式同上）。
         return faces[1]
 

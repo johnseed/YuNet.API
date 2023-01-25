@@ -4,6 +4,7 @@ import numpy as np
 import cv2 as cv
 
 from yunet import YuNet
+from sface import SFace
 
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -13,9 +14,13 @@ targets = [cv.dnn.DNN_TARGET_CPU, cv.dnn.DNN_TARGET_CUDA, cv.dnn.DNN_TARGET_CUDA
 
 class DetectionParam(BaseModel):
     save: Optional[bool] = Field(True, description="Set “True” to save file with results (i.e. bounding box, confidence level). Invalid in case of camera input. Default will be set to “False”.")
+    recognize: Optional[bool] = Field(True, description="Set “True” to recognize face.")
     input: str = Field(..., description="Image file path")
     output: Optional[str] = Field('', description="Result file path")
 
+class RecognizeParam(BaseModel):
+    input: str = Field('', description="Image file path")
+    faces: list = Field([], description="faces")
 
 help_msg_backends = "Choose one of the computation backends: {:d}: OpenCV implementation (default); {:d}: CUDA"
 help_msg_targets = "Choose one of the target computation devices: {:d}: CPU (default); {:d}: CUDA; {:d}: CUDA fp16"
@@ -67,13 +72,27 @@ def visualize(image, results, box_color=(0, 255, 0), text_color=(0, 0, 255), fps
 
 
 # Instantiate YuNet
-model = YuNet(modelPath='face_detection_yunet_2022mar.onnx',
+detector = YuNet(modelPath='face_detection_yunet_2022mar.onnx',
                 inputSize=[320, 320],
                 confThreshold=0.9,
                 nmsThreshold=0.3,
                 topK=5000,
                 backendId=backends[1],
                 targetId=targets[1])
+
+# parser = argparse.ArgumentParser(
+#     description="SFace: Sigmoid-Constrained Hypersphere Loss for Robust Face Recognition (https://ieeexplore.ieee.org/document/9318547)")
+# parser.add_argument('--input1', '-i1', type=str, help='Usage: Set path to the input image 1 (original face).')
+# parser.add_argument('--input2', '-i2', type=str, help='Usage: Set path to the input image 2 (comparison face).')
+# parser.add_argument('--model', '-m', type=str, default='face_recognition_sface_2021dec.onnx', help='Usage: Set model path, defaults to face_recognition_sface_2021dec.onnx.')
+# parser.add_argument('--backend', '-b', type=int, default=backends[0], help=help_msg_backends.format(*backends))
+# parser.add_argument('--target', '-t', type=int, default=targets[0], help=help_msg_targets.format(*targets))
+# parser.add_argument('--dis_type', type=int, choices=[0, 1], default=0, help='Usage: Distance type. \'0\': cosine, \'1\': norm_l1. Defaults to \'0\'')
+# parser.add_argument('--save', '-s', type=str, default=False, help='Usage: Set “True” to save file with results (i.e. bounding box, confidence level). Invalid in case of camera input. Default will be set to “False”.')
+# parser.add_argument('--vis', '-v', type=str2bool, default=True, help='Usage: Default will be set to “True” and will open a new window to show results. Set to “False” to stop visualizations from being shown. Invalid in case of camera input.')
+# args = parser.parse_args()
+
+recognizer = SFace(modelPath='face_recognition_sface_2021dec.onnx', disType=0, backendId=backends[1], targetId=targets[1])
 
 def detect_face(param: DetectionParam):
     # If input is an image
@@ -82,9 +101,18 @@ def detect_face(param: DetectionParam):
         h, w, _ = image.shape
 
         # Inference
-        model.setInputSize([w, h])
-        results = model.infer(image)
-
+        detector.setInputSize([w, h])
+        faces = detector.infer(image)
+        
+        features = []
+        if param.recognize:
+            # 保存feature
+            for face in faces:
+                # 在人脸检测部分的基础上, 对齐检测到的首个人脸(faces[1][0]),这里的faces已经取了[1]， 保存至aligned_face。
+                # 在上文的基础上, 获取对齐人脸的特征feature。
+                feature = recognizer.infer(image, face)
+                features.append(feature.tolist())
+        # same = recognizer.match(features[0], features[1])
         # # Print results
         # print('{} faces detected.'.format(results.shape[0]))
         # for idx, det in enumerate(results):
@@ -95,11 +123,53 @@ def detect_face(param: DetectionParam):
         # Save results if save is true
         if param.save:
             # Draw results on the input image
-            image = visualize(image, results)
+            image = visualize(image, faces)
             cv.imwrite(param.output, image)
             print('Resutls saved\n')
 
-        if results is not None:
-            return results.tolist()
+        if faces is not None:
+            return { "faces": faces.tolist(), "features": features }
         else:
-         return []
+         return {}
+
+def recognize_face(param: RecognizeParam):
+    faces = param.faces
+    face0 = faces[1]
+    face0 = np.asarray(face0)
+    print(face0)
+    # If input is an image
+    # if param.input is not None:
+    #     image = cv.imread(param.input)
+    #     h, w, _ = image.shape
+
+    #     # Inference
+    #     detector.setInputSize([w, h])
+    #     faces = detector.infer(image)
+        
+    #     # result = recognizer.match(img1, face1[0][:-1], img2, face2[0][:-1])
+
+    #     # sface类里已经封装了这些代码，不用自己写了
+    #     # # 在人脸检测部分的基础上, 对齐检测到的首个人脸(faces[1][0]),这里的faces已经取了[1]， 保存至aligned_face。这里只是demo只用了首个0
+    #     # aligned_face = recognizer.alignCrop(image, faces[0])
+    #     # # 在上文的基础上, 获取对齐人脸的特征feature。
+    #     # feature = recognizer.feature(aligned_face)
+
+    #     # # Print results
+    #     # print('{} faces detected.'.format(results.shape[0]))
+    #     # for idx, det in enumerate(results):
+    #     #     print('{}: {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f} {:.0f}'.format(
+    #     #         idx, *det[:-1])
+    #     #     )
+
+    #     # Save results if save is true
+    #     if param.save:
+    #         # Draw results on the input image
+    #         image = visualize(image, faces)
+    #         cv.imwrite(param.output, image)
+    #         print('Resutls saved\n')
+
+    #     if faces is not None:
+    #         return faces.tolist()
+    #     else:
+    #      return []
+         
