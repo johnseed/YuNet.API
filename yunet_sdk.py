@@ -19,8 +19,10 @@ class DetectionParam(BaseModel):
     output: Optional[str] = Field('', description="Result file path")
 
 class RecognizeParam(BaseModel):
-    input: str = Field('', description="Image file path")
-    faces: list = Field([], description="faces")
+    # input: str = Field('', description="Image file path")
+    # faces: list = Field([], description="faces")
+    feature0: list = Field(..., description="face0 128D feature")
+    feature1: list = Field(..., description="face1 128D feature")
 
 help_msg_backends = "Choose one of the computation backends: {:d}: OpenCV implementation (default); {:d}: CUDA"
 help_msg_targets = "Choose one of the target computation devices: {:d}: CPU (default); {:d}: CUDA; {:d}: CUDA fp16"
@@ -133,10 +135,11 @@ def detect_face(param: DetectionParam):
          return {}
 
 def recognize_face(param: RecognizeParam):
-    faces = param.faces
-    face0 = faces[1]
-    face0 = np.asarray(face0)
-    print(face0)
+    # faces = param.faces
+    # face0 = faces[1]
+    # face0 = np.asarray(face0)
+    # print(face0)
+    return recognizer.match(np.asarray(param.feature0), np.asarray(param.feature1))
     # If input is an image
     # if param.input is not None:
     #     image = cv.imread(param.input)
