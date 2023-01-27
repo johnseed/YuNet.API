@@ -1,4 +1,5 @@
 # import argparse
+import threading
 
 import numpy as np
 import cv2 as cv
@@ -45,6 +46,7 @@ except:
 # parser.add_argument('--save', '-s', type=str, default=False, help='Usage: Set “True” to save file with results (i.e. bounding box, confidence level). Invalid in case of camera input. Default will be set to “False”.')
 # parser.add_argument('--vis', '-v', type=str2bool, default=False, help='Usage: Default will be set to “True” and will open a new window to show results. Set to “False” to stop visualizations from being shown. Invalid in case of camera input.')
 # args = parser.parse_args()
+modelLock = threading.Lock()
 
 def visualize(image, results, box_color=(0, 255, 0), text_color=(0, 0, 255), fps=None):
     output = image.copy()
@@ -74,13 +76,7 @@ def visualize(image, results, box_color=(0, 255, 0), text_color=(0, 0, 255), fps
 
 
 # Instantiate YuNet
-detector = YuNet(modelPath='face_detection_yunet_2022mar.onnx',
-                inputSize=[320, 320],
-                confThreshold=0.9,
-                nmsThreshold=0.3,
-                topK=5000,
-                backendId=backends[1],
-                targetId=targets[1])
+detector = None
 
 # parser = argparse.ArgumentParser(
 #     description="SFace: Sigmoid-Constrained Hypersphere Loss for Robust Face Recognition (https://ieeexplore.ieee.org/document/9318547)")
@@ -94,9 +90,10 @@ detector = YuNet(modelPath='face_detection_yunet_2022mar.onnx',
 # parser.add_argument('--vis', '-v', type=str2bool, default=True, help='Usage: Default will be set to “True” and will open a new window to show results. Set to “False” to stop visualizations from being shown. Invalid in case of camera input.')
 # args = parser.parse_args()
 
-recognizer = SFace(modelPath='face_recognition_sface_2021dec.onnx', disType=0, backendId=backends[1], targetId=targets[1])
+recognizer = None
 
 def detect_face(param: DetectionParam):
+    load_model()
     # If input is an image
     if param.input is not None:
         image = cv.imread(param.input)
@@ -135,6 +132,7 @@ def detect_face(param: DetectionParam):
          return {}
 
 def recognize_face(param: RecognizeParam):
+    load_model()
     # faces = param.faces
     # face0 = faces[1]
     # face0 = np.asarray(face0)
@@ -175,4 +173,22 @@ def recognize_face(param: RecognizeParam):
     #         return faces.tolist()
     #     else:
     #      return []
-         
+def load_model():
+    global detector
+    global recognizer
+    if detector is None:
+        with modelLock:
+            if detector is None:
+                detector = YuNet(modelPath='face_detection_yunet_2022mar.onnx',
+                inputSize=[320, 320],
+                confThreshold=0.9,
+                nmsThreshold=0.3,
+                topK=5000,
+                backendId=backends[1],
+                targetId=targets[1])
+                print('YuNet detector loaded')
+    if recognizer is None:
+        with modelLock:
+            if recognizer is None:
+                recognizer = SFace(modelPath='face_recognition_sface_2021dec.onnx', disType=0, backendId=backends[1], targetId=targets[1])
+                print('SFace recognizer loaded')
