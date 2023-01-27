@@ -11,7 +11,7 @@ class DetectionParam(BaseModel):
     recognize: Optional[bool] = Field(True, description="Set “True” to recognize face.")
     input: str = Field(..., description="Image file path")
     output: Optional[str] = Field('', description="Result file path")
-    d1: Optional[str] = Field(False, description="1d result")
+    d1: Optional[bool] = Field(False, description="1d result")
 
 class RecognizeParam(BaseModel):
     feature0: list = Field(..., description="face0 128D feature")
